@@ -15,7 +15,7 @@ use windows::{
     core::{Error, PCWSTR, Result},
 };
 
-use crate::{AppState, SettingsControls, config::RewriteTarget, to_wide};
+use crate::{AppState, SettingsControls, i18n::UiLanguage, to_wide};
 
 const BST_CHECKED: usize = 1;
 const SETTINGS_CLASS_NAME_TEXT: &str = "FixXSettingsWindow";
@@ -25,6 +25,9 @@ const ID_TARGET_FX: usize = 201;
 const ID_TARGET_VX: usize = 202;
 const ID_STARTUP_CHECKBOX: usize = 203;
 const ID_CLOSE_BUTTON: usize = 204;
+const ID_LANGUAGE_AUTO: usize = 205;
+const ID_LANGUAGE_JA: usize = 206;
+const ID_LANGUAGE_EN: usize = 207;
 
 struct ControlSpec<'a> {
     text: &'a str,
@@ -61,7 +64,7 @@ pub(crate) unsafe fn open_settings_window(app: &mut AppState) -> Result<()> {
         return Ok(());
     }
 
-    let title = to_wide("fix-x Settings");
+    let title = to_wide(app.strings().settings_title);
     let hwnd = CreateWindowExW(
         WINDOW_EX_STYLE(0),
         settings_class_name(),
@@ -69,8 +72,8 @@ pub(crate) unsafe fn open_settings_window(app: &mut AppState) -> Result<()> {
         WS_OVERLAPPED | WS_SYSMENU,
         CW_USEDEFAULT,
         CW_USEDEFAULT,
-        320,
-        220,
+        340,
+        340,
         Some(app.hwnd),
         None,
         Some(app.hinstance),
@@ -98,30 +101,41 @@ unsafe extern "system" fn settings_wnd_proc(
         }
         WM_CREATE => {
             if let Some(app) = get_app(hwnd) {
+                let strings = app.strings();
+
                 app.settings = SettingsControls {
                     hwnd,
                     enable_checkbox: create_button(
                         app.hinstance,
                         hwnd,
                         &ControlSpec {
-                            text: "Enable automatic rewrite",
+                            text: strings.enable_checkbox,
                             id: ID_ENABLE_CHECKBOX,
                             x: 16,
                             y: 16,
-                            width: 240,
+                            width: 260,
                             height: 24,
                             style: WINDOW_STYLE(BS_AUTOCHECKBOX as u32),
                         },
+                    ),
+                    target_label: create_static(
+                        app.hinstance,
+                        hwnd,
+                        strings.target_label,
+                        16,
+                        48,
+                        120,
+                        20,
                     ),
                     fx_radio: create_button(
                         app.hinstance,
                         hwnd,
                         &ControlSpec {
-                            text: "Use fxtwitter.com",
+                            text: strings.target_fx,
                             id: ID_TARGET_FX,
                             x: 32,
                             y: 72,
-                            width: 200,
+                            width: 220,
                             height: 24,
                             style: WINDOW_STYLE(BS_AUTORADIOBUTTON as u32) | WS_TABSTOP,
                         },
@@ -130,11 +144,11 @@ unsafe extern "system" fn settings_wnd_proc(
                         app.hinstance,
                         hwnd,
                         &ControlSpec {
-                            text: "Use vxtwitter.com",
+                            text: strings.target_vx,
                             id: ID_TARGET_VX,
                             x: 32,
                             y: 98,
-                            width: 200,
+                            width: 220,
                             height: 24,
                             style: WINDOW_STYLE(BS_AUTORADIOBUTTON as u32) | WS_TABSTOP,
                         },
@@ -143,31 +157,77 @@ unsafe extern "system" fn settings_wnd_proc(
                         app.hinstance,
                         hwnd,
                         &ControlSpec {
-                            text: "Launch on Windows startup",
+                            text: strings.startup_checkbox,
                             id: ID_STARTUP_CHECKBOX,
                             x: 16,
-                            y: 128,
-                            width: 240,
+                            y: 132,
+                            width: 270,
                             height: 24,
                             style: WINDOW_STYLE(BS_AUTOCHECKBOX as u32),
                         },
                     ),
+                    language_label: create_static(
+                        app.hinstance,
+                        hwnd,
+                        strings.language_label,
+                        16,
+                        168,
+                        120,
+                        20,
+                    ),
+                    language_auto_radio: create_button(
+                        app.hinstance,
+                        hwnd,
+                        &ControlSpec {
+                            text: strings.language_auto,
+                            id: ID_LANGUAGE_AUTO,
+                            x: 32,
+                            y: 192,
+                            width: 220,
+                            height: 24,
+                            style: WINDOW_STYLE(BS_AUTORADIOBUTTON as u32) | WS_TABSTOP,
+                        },
+                    ),
+                    language_ja_radio: create_button(
+                        app.hinstance,
+                        hwnd,
+                        &ControlSpec {
+                            text: strings.language_ja,
+                            id: ID_LANGUAGE_JA,
+                            x: 32,
+                            y: 218,
+                            width: 220,
+                            height: 24,
+                            style: WINDOW_STYLE(BS_AUTORADIOBUTTON as u32) | WS_TABSTOP,
+                        },
+                    ),
+                    language_en_radio: create_button(
+                        app.hinstance,
+                        hwnd,
+                        &ControlSpec {
+                            text: strings.language_en,
+                            id: ID_LANGUAGE_EN,
+                            x: 32,
+                            y: 244,
+                            width: 220,
+                            height: 24,
+                            style: WINDOW_STYLE(BS_AUTORADIOBUTTON as u32) | WS_TABSTOP,
+                        },
+                    ),
+                    close_button: create_button(
+                        app.hinstance,
+                        hwnd,
+                        &ControlSpec {
+                            text: strings.close_button,
+                            id: ID_CLOSE_BUTTON,
+                            x: 236,
+                            y: 278,
+                            width: 80,
+                            height: 28,
+                            style: WINDOW_STYLE(BS_PUSHBUTTON as u32) | WS_TABSTOP,
+                        },
+                    ),
                 };
-
-                let _ = create_static(app.hinstance, hwnd, "Rewrite target", 16, 48, 120, 20);
-                let _ = create_button(
-                    app.hinstance,
-                    hwnd,
-                    &ControlSpec {
-                        text: "Close",
-                        id: ID_CLOSE_BUTTON,
-                        x: 220,
-                        y: 154,
-                        width: 72,
-                        height: 28,
-                        style: WINDOW_STYLE(BS_PUSHBUTTON as u32) | WS_TABSTOP,
-                    },
-                );
 
                 app.sync_settings_controls();
             }
@@ -183,13 +243,22 @@ unsafe extern "system" fn settings_wnd_proc(
                         app.set_enabled(is_checked(app.settings.enable_checkbox));
                     }
                     ID_TARGET_FX if notify_code == BN_CLICKED as u16 => {
-                        app.set_target(RewriteTarget::Fx);
+                        app.set_target(crate::config::RewriteTarget::Fx);
                     }
                     ID_TARGET_VX if notify_code == BN_CLICKED as u16 => {
-                        app.set_target(RewriteTarget::Vx);
+                        app.set_target(crate::config::RewriteTarget::Vx);
                     }
                     ID_STARTUP_CHECKBOX if notify_code == BN_CLICKED as u16 => {
                         app.set_launch_on_startup(is_checked(app.settings.startup_checkbox));
+                    }
+                    ID_LANGUAGE_AUTO if notify_code == BN_CLICKED as u16 => {
+                        app.set_language(UiLanguage::Auto);
+                    }
+                    ID_LANGUAGE_JA if notify_code == BN_CLICKED as u16 => {
+                        app.set_language(UiLanguage::Ja);
+                    }
+                    ID_LANGUAGE_EN if notify_code == BN_CLICKED as u16 => {
+                        app.set_language(UiLanguage::En);
                     }
                     ID_CLOSE_BUTTON if notify_code == BN_CLICKED as u16 => {
                         let _ = ShowWindow(hwnd, SW_HIDE);

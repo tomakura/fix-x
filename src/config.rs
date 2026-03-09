@@ -5,6 +5,8 @@ use std::{
 
 use serde::{Deserialize, Serialize};
 
+use crate::i18n::UiLanguage;
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "lowercase")]
 pub enum RewriteTarget {
@@ -26,6 +28,7 @@ pub struct AppConfig {
     pub enabled: bool,
     pub target: RewriteTarget,
     pub launch_on_startup: bool,
+    pub language: UiLanguage,
 }
 
 impl Default for AppConfig {
@@ -34,6 +37,7 @@ impl Default for AppConfig {
             enabled: true,
             target: RewriteTarget::Fx,
             launch_on_startup: true,
+            language: UiLanguage::Auto,
         }
     }
 }
@@ -81,6 +85,7 @@ mod tests {
     use tempfile::tempdir;
 
     use super::{AppConfig, RewriteTarget};
+    use crate::i18n::UiLanguage;
 
     #[test]
     fn missing_config_returns_default() {
@@ -100,6 +105,7 @@ mod tests {
             enabled: false,
             target: RewriteTarget::Vx,
             launch_on_startup: false,
+            language: UiLanguage::Ja,
         };
 
         config.save_to_path(&path).unwrap();

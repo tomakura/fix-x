@@ -1,60 +1,58 @@
 # fix-x
 
-Windowsで常駐し、クリップボードにコピーした `x.com` の投稿URLを `fxtwitter.com` または `vxtwitter.com` に自動変換する軽量アプリです。
+日本語:
+`x.com` の投稿URLを、クリップボードにコピーした瞬間に `fxtwitter.com` または `vxtwitter.com` に自動変換する Windows 常駐アプリです。
 
-## 機能
+English:
+`fix-x` is a lightweight Windows tray app that automatically rewrites copied `x.com` post URLs to `fxtwitter.com` or `vxtwitter.com`.
 
-- タスクトレイ常駐
-- `x.com/<user>/status/<id>` 形式のURLを自動変換
-- 変換先の切り替え
-  - `fxtwitter.com`
-  - `vxtwitter.com`
-- 自動変換のオン・オフ
-- Windows起動時の自動起動オン・オフ
-- 設定を `%APPDATA%\\fix-x\\config.json` に保存
+## Features
 
-## 対象
+- Tray resident app with a small settings window
+- Automatic rewrite for `x.com/<user>/status/<id>` URLs only
+- Rewrite target switch: `fxtwitter.com` / `vxtwitter.com`
+- Enable / disable automatic rewrite
+- Launch on Windows startup toggle
+- UI language: `Auto` / `日本語` / `English`
+- Config stored at `%APPDATA%\fix-x\config.json`
 
-変換対象はURL文字列そのものがクリップボードに入っている場合のみです。
+## Behavior
 
-- 対象: `https://x.com/example/status/1234567890`
-- 対象外: `https://x.com/example`
-- 対象外: `メモ https://x.com/example/status/1234567890`
-- 対象外: すでに `fxtwitter.com` / `vxtwitter.com` のURL
+- Rewrites only when the clipboard contains a single URL string
+- Keeps query strings and fragments
+- Ignores non-post URLs, embedded URLs in text, and already rewritten URLs
 
-クエリ文字列とフラグメントは維持されます。
-
-## 使い方
-
-1. アプリを起動します。
-2. タスクトレイに `fix-x` のアイコンが表示されます。
-3. トレイアイコンを左クリック、または右クリックして `Open Settings` を選ぶと設定画面を開けます。
-4. `x.com` の投稿URLをコピーすると、自動で設定先ドメインへ書き換えられます。
-
-## ビルド
-
-Rust ツールチェーンが必要です。
+## Build
 
 ```powershell
 cargo build --release
 ```
 
-生成物:
+Output:
 
 - `target\release\fix-x.exe`
 
-## テスト
+## Tests
 
 ```powershell
+cargo clippy --all-targets -- -D warnings
 cargo test
 ```
 
-## 実装メモ
+## Installer
 
-- Rust
-- Win32 API (`windows` crate)
-- レジストリの `HKCU\Software\Microsoft\Windows\CurrentVersion\Run` を使って自動起動を制御
+Build the installer with Windows built-in IExpress:
 
-## ライセンス
+```powershell
+powershell -ExecutionPolicy Bypass -File .\installer\build-installer.ps1
+```
+
+Output:
+
+- `dist\fix-x-installer.exe`
+
+The installer copies `fix-x.exe` into `%LOCALAPPDATA%\Programs\fix-x`, creates Start Menu shortcuts, and launches the app after installation.
+
+## License
 
 MIT License

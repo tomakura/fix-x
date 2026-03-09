@@ -4,11 +4,13 @@
 mod clipboard;
 mod config;
 mod gui;
+mod i18n;
 mod startup;
 
 use std::mem::size_of;
 
 use config::{AppConfig, RewriteTarget};
+use i18n::{Strings, UiLanguage};
 use windows::{
     Win32::{
         Foundation::{HINSTANCE, HWND, LPARAM, LRESULT, POINT, WPARAM},
@@ -24,10 +26,10 @@ use windows::{
                 GetCursorPos, GetMessageW, GetWindowLongPtrW, IDC_ARROW, IDI_APPLICATION,
                 LoadCursorW, LoadIconW, MF_BYCOMMAND, MF_CHECKED, MF_STRING, MSG, PostMessageW,
                 PostQuitMessage, RegisterClassW, SW_HIDE, SendMessageW, SetForegroundWindow,
-                SetWindowLongPtrW, ShowWindow, TPM_BOTTOMALIGN, TPM_LEFTALIGN, TrackPopupMenu,
-                TranslateMessage, WINDOW_EX_STYLE, WM_APP, WM_COMMAND, WM_CONTEXTMENU, WM_CREATE,
-                WM_DESTROY, WM_LBUTTONUP, WM_NCCREATE, WM_NULL, WM_RBUTTONUP, WNDCLASSW,
-                WS_OVERLAPPEDWINDOW,
+                SetWindowLongPtrW, SetWindowTextW, ShowWindow, TPM_BOTTOMALIGN, TPM_LEFTALIGN,
+                TrackPopupMenu, TranslateMessage, WINDOW_EX_STYLE, WM_APP, WM_COMMAND,
+                WM_CONTEXTMENU, WM_CREATE, WM_DESTROY, WM_LBUTTONUP, WM_NCCREATE, WM_NULL,
+                WM_RBUTTONUP, WNDCLASSW, WS_OVERLAPPEDWINDOW,
             },
         },
     },
@@ -49,9 +51,15 @@ const ID_TRAY_EXIT: usize = 102;
 pub(crate) struct SettingsControls {
     hwnd: HWND,
     enable_checkbox: HWND,
+    target_label: HWND,
     fx_radio: HWND,
     vx_radio: HWND,
     startup_checkbox: HWND,
+    language_label: HWND,
+    language_auto_radio: HWND,
+    language_ja_radio: HWND,
+    language_en_radio: HWND,
+    close_button: HWND,
 }
 
 pub(crate) struct AppState {
@@ -91,10 +99,18 @@ impl AppState {
         self.sync_settings_controls();
     }
 
+    pub(crate) unsafe fn set_language(&mut self, language: UiLanguage) {
+        self.config.language = language;
+        self.persist();
+        self.sync_settings_controls();
+    }
+
     pub(crate) unsafe fn sync_settings_controls(&self) {
         if self.settings.hwnd.0.is_null() {
             return;
         }
+
+        self.refresh_localized_text();
 
         let enabled = if self.config.enabled {
             BST_CHECKED
@@ -112,6 +128,21 @@ impl AppState {
             BST_UNCHECKED
         };
         let vx_checked = if self.config.target == RewriteTarget::Vx {
+            BST_CHECKED
+        } else {
+            BST_UNCHECKED
+        };
+        let language_auto = if self.config.language == UiLanguage::Auto {
+            BST_CHECKED
+        } else {
+            BST_UNCHECKED
+        };
+        let language_ja = if self.config.language == UiLanguage::Ja {
+            BST_CHECKED
+        } else {
+            BST_UNCHECKED
+        };
+        let language_en = if self.config.language == UiLanguage::En {
             BST_CHECKED
         } else {
             BST_UNCHECKED
@@ -141,6 +172,43 @@ impl AppState {
             Some(WPARAM(vx_checked)),
             Some(LPARAM(0)),
         );
+        let _ = SendMessageW(
+            self.settings.language_auto_radio,
+            BM_SETCHECK,
+            Some(WPARAM(language_auto)),
+            Some(LPARAM(0)),
+        );
+        let _ = SendMessageW(
+            self.settings.language_ja_radio,
+            BM_SETCHECK,
+            Some(WPARAM(language_ja)),
+            Some(LPARAM(0)),
+        );
+        let _ = SendMessageW(
+            self.settings.language_en_radio,
+            BM_SETCHECK,
+            Some(WPARAM(language_en)),
+            Some(LPARAM(0)),
+        );
+    }
+
+    pub(crate) fn strings(&self) -> &'static Strings {
+        i18n::strings(self.config.language)
+    }
+
+    unsafe fn refresh_localized_text(&self) {
+        let strings = self.strings();
+        set_window_text(self.settings.hwnd, strings.settings_title);
+        set_window_text(self.settings.enable_checkbox, strings.enable_checkbox);
+        set_window_text(self.settings.target_label, strings.target_label);
+        set_window_text(self.settings.fx_radio, strings.target_fx);
+        set_window_text(self.settings.vx_radio, strings.target_vx);
+        set_window_text(self.settings.startup_checkbox, strings.startup_checkbox);
+        set_window_text(self.settings.language_label, strings.language_label);
+        set_window_text(self.settings.language_auto_radio, strings.language_auto);
+        set_window_text(self.settings.language_ja_radio, strings.language_ja);
+        set_window_text(self.settings.language_en_radio, strings.language_en);
+        set_window_text(self.settings.close_button, strings.close_button);
     }
 
     unsafe fn persist(&self) {
@@ -265,10 +333,11 @@ unsafe fn remove_tray_icon(hwnd: HWND) {
 
 unsafe fn show_tray_menu(hwnd: HWND, app: &AppState) -> Result<()> {
     let menu = CreatePopupMenu()?;
+    let strings = app.strings();
 
-    let open_settings = to_wide("Open Settings");
-    let enabled = to_wide("Enabled");
-    let exit = to_wide("Exit");
+    let open_settings = to_wide(strings.tray_open_settings);
+    let enabled = to_wide(strings.tray_enabled);
+    let exit = to_wide(strings.tray_exit);
 
     AppendMenuW(
         menu,
@@ -398,6 +467,15 @@ pub(crate) fn copy_wide(value: &str, target: &mut [u16]) {
 
 pub(crate) fn to_wide(value: &str) -> Vec<u16> {
     value.encode_utf16().chain(std::iter::once(0)).collect()
+}
+
+pub(crate) unsafe fn set_window_text(hwnd: HWND, text: &str) {
+    if hwnd.0.is_null() {
+        return;
+    }
+
+    let text = to_wide(text);
+    let _ = SetWindowTextW(hwnd, PCWSTR(text.as_ptr()));
 }
 
 fn loword(value: usize) -> u16 {
