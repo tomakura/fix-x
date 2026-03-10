@@ -7,7 +7,7 @@ mod gui;
 mod i18n;
 mod startup;
 
-use std::mem::size_of;
+use std::{mem::size_of, path::PathBuf};
 
 use config::{AppConfig, RewriteTarget};
 use i18n::{Strings, UiLanguage};
@@ -24,12 +24,12 @@ use windows::{
                 AppendMenuW, BM_SETCHECK, CREATESTRUCTW, CreatePopupMenu, CreateWindowExW,
                 DefWindowProcW, DestroyMenu, DestroyWindow, DispatchMessageW, GWLP_USERDATA,
                 GetCursorPos, GetMessageW, GetWindowLongPtrW, IDC_ARROW, IDI_APPLICATION,
-                LoadCursorW, LoadIconW, MF_BYCOMMAND, MF_CHECKED, MF_STRING, MSG, PostMessageW,
-                PostQuitMessage, RegisterClassW, SW_HIDE, SendMessageW, SetForegroundWindow,
-                SetWindowLongPtrW, SetWindowTextW, ShowWindow, TPM_BOTTOMALIGN, TPM_LEFTALIGN,
-                TrackPopupMenu, TranslateMessage, WINDOW_EX_STYLE, WM_APP, WM_COMMAND,
-                WM_CONTEXTMENU, WM_CREATE, WM_DESTROY, WM_LBUTTONUP, WM_NCCREATE, WM_NULL,
-                WM_RBUTTONUP, WNDCLASSW, WS_OVERLAPPEDWINDOW,
+                IMAGE_ICON, LR_LOADFROMFILE, LoadCursorW, LoadIconW, LoadImageW, MF_BYCOMMAND,
+                MF_CHECKED, MF_STRING, MSG, PostMessageW, PostQuitMessage, RegisterClassW, SW_HIDE,
+                SendMessageW, SetForegroundWindow, SetWindowLongPtrW, SetWindowTextW, ShowWindow,
+                TPM_BOTTOMALIGN, TPM_LEFTALIGN, TrackPopupMenu, TranslateMessage, WINDOW_EX_STYLE,
+                WM_APP, WM_COMMAND, WM_CONTEXTMENU, WM_CREATE, WM_DESTROY, WM_LBUTTONUP,
+                WM_NCCREATE, WM_NULL, WM_RBUTTONUP, WNDCLASSW, WS_OVERLAPPEDWINDOW,
             },
         },
     },
@@ -294,6 +294,7 @@ unsafe fn register_main_window_class(hinstance: HINSTANCE) -> Result<()> {
     let class = WNDCLASSW {
         hCursor: LoadCursorW(None, IDC_ARROW)?,
         hInstance: hinstance,
+        hIcon: load_app_icon().unwrap_or(LoadIconW(None, IDI_APPLICATION)?),
         lpszClassName: main_class_name(),
         lpfnWndProc: Some(main_wnd_proc),
         ..Default::default()
@@ -307,13 +308,14 @@ unsafe fn register_main_window_class(hinstance: HINSTANCE) -> Result<()> {
 }
 
 unsafe fn add_tray_icon(hwnd: HWND) -> Result<()> {
+    let icon = load_app_icon().unwrap_or(LoadIconW(None, IDI_APPLICATION)?);
     let mut data = NOTIFYICONDATAW {
         cbSize: size_of::<NOTIFYICONDATAW>() as u32,
         hWnd: hwnd,
         uID: TRAY_ICON_ID,
         uFlags: NIF_MESSAGE | NIF_ICON | NIF_TIP,
         uCallbackMessage: WM_TRAYICON,
-        hIcon: LoadIconW(None, IDI_APPLICATION)?,
+        hIcon: icon,
         ..Default::default()
     };
     copy_wide("fix-x", &mut data.szTip);
@@ -489,4 +491,45 @@ fn main_class_name() -> PCWSTR {
             .get_or_init(|| to_wide(MAIN_CLASS_NAME_TEXT))
             .as_ptr(),
     )
+}
+
+pub(crate) unsafe fn load_app_icon() -> Option<windows::Win32::UI::WindowsAndMessaging::HICON> {
+    for path in app_icon_candidates() {
+        if !path.exists() {
+            continue;
+        }
+
+        let wide = to_wide(&path.display().to_string());
+        if let Ok(handle) = LoadImageW(
+            None,
+            PCWSTR(wide.as_ptr()),
+            IMAGE_ICON,
+            0,
+            0,
+            LR_LOADFROMFILE,
+        ) {
+            return Some(windows::Win32::UI::WindowsAndMessaging::HICON(handle.0));
+        }
+    }
+
+    None
+}
+
+fn app_icon_candidates() -> Vec<PathBuf> {
+    let mut candidates = Vec::new();
+    if let Ok(exe) = std::env::current_exe()
+        && let Some(dir) = exe.parent()
+    {
+        candidates.push(dir.join("fix-x.ico"));
+        candidates.push(dir.join("logo.ico"));
+        candidates.push(dir.join("assets").join("logo.ico"));
+
+        if let Some(parent) = dir.parent() {
+            candidates.push(parent.join("assets").join("logo.ico"));
+            if let Some(grand) = parent.parent() {
+                candidates.push(grand.join("assets").join("logo.ico"));
+            }
+        }
+    }
+    candidates
 }

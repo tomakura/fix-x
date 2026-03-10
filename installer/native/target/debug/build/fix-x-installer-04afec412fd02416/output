@@ -1,0 +1,3 @@
+cargo:rerun-if-changed=app.manifest
+cargo:rustc-link-arg-bins=/MANIFEST:EMBED
+cargo:rustc-link-arg-bins=/MANIFESTINPUT:C:\Users\Flow\Programs\fix-x\installer\native\app.manifest

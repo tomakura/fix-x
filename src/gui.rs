@@ -1,15 +1,18 @@
 use windows::{
     Win32::{
         Foundation::{HINSTANCE, HWND, LPARAM, LRESULT, WPARAM},
-        Graphics::Gdi::{COLOR_WINDOW, DEFAULT_GUI_FONT, GetStockObject, GetSysColorBrush},
-        UI::WindowsAndMessaging::{
-            BM_GETCHECK, BN_CLICKED, BS_AUTOCHECKBOX, BS_AUTORADIOBUTTON, BS_PUSHBUTTON,
-            CREATESTRUCTW, CW_USEDEFAULT, CreateWindowExW, DefWindowProcW, GWLP_USERDATA,
-            GetWindowLongPtrW, HMENU, IDC_ARROW, LoadCursorW, RegisterClassW, SW_HIDE, SW_SHOW,
-            SW_SHOWNORMAL, SendMessageW, SetForegroundWindow, SetWindowLongPtrW, ShowWindow,
-            WINDOW_EX_STYLE, WINDOW_STYLE, WM_CLOSE, WM_COMMAND, WM_CREATE, WM_NCCREATE,
-            WM_SETFONT, WNDCLASSW, WS_CHILD, WS_CLIPSIBLINGS, WS_OVERLAPPED, WS_SYSMENU,
-            WS_TABSTOP, WS_VISIBLE,
+        Graphics::Gdi::{COLOR_BTNFACE, DEFAULT_GUI_FONT, GetStockObject, GetSysColorBrush},
+        UI::{
+            Controls::{ICC_STANDARD_CLASSES, INITCOMMONCONTROLSEX, InitCommonControlsEx},
+            WindowsAndMessaging::{
+                BM_GETCHECK, BN_CLICKED, BS_AUTOCHECKBOX, BS_AUTORADIOBUTTON, BS_GROUPBOX,
+                BS_PUSHBUTTON, CREATESTRUCTW, CW_USEDEFAULT, CreateWindowExW, DefWindowProcW,
+                GWLP_USERDATA, GetWindowLongPtrW, HMENU, IDC_ARROW, LoadCursorW, RegisterClassW,
+                SW_HIDE, SW_SHOW, SW_SHOWNORMAL, SendMessageW, SetForegroundWindow,
+                SetWindowLongPtrW, ShowWindow, WINDOW_EX_STYLE, WINDOW_STYLE, WM_CLOSE, WM_COMMAND,
+                WM_CREATE, WM_NCCREATE, WM_SETFONT, WNDCLASSW, WS_CHILD, WS_GROUP, WS_OVERLAPPED,
+                WS_SYSMENU, WS_TABSTOP, WS_VISIBLE,
+            },
         },
     },
     core::{Error, PCWSTR, Result},
@@ -40,12 +43,19 @@ struct ControlSpec<'a> {
 }
 
 pub(crate) unsafe fn register_settings_class(hinstance: HINSTANCE) -> Result<()> {
+    let classes = INITCOMMONCONTROLSEX {
+        dwSize: std::mem::size_of::<INITCOMMONCONTROLSEX>() as u32,
+        dwICC: ICC_STANDARD_CLASSES,
+    };
+    let _ = InitCommonControlsEx(&classes);
+
     let class = WNDCLASSW {
         hInstance: hinstance,
         lpszClassName: settings_class_name(),
         lpfnWndProc: Some(settings_wnd_proc),
         hCursor: LoadCursorW(None, IDC_ARROW)?,
-        hbrBackground: GetSysColorBrush(COLOR_WINDOW),
+        hIcon: crate::load_app_icon().unwrap_or_default(),
+        hbrBackground: GetSysColorBrush(COLOR_BTNFACE),
         ..Default::default()
     };
 
@@ -72,8 +82,8 @@ pub(crate) unsafe fn open_settings_window(app: &mut AppState) -> Result<()> {
         WS_OVERLAPPED | WS_SYSMENU,
         CW_USEDEFAULT,
         CW_USEDEFAULT,
-        340,
-        340,
+        376,
+        390,
         Some(app.hwnd),
         None,
         Some(app.hinstance),
@@ -111,21 +121,21 @@ unsafe extern "system" fn settings_wnd_proc(
                         &ControlSpec {
                             text: strings.enable_checkbox,
                             id: ID_ENABLE_CHECKBOX,
-                            x: 16,
-                            y: 16,
-                            width: 260,
+                            x: 22,
+                            y: 20,
+                            width: 300,
                             height: 24,
-                            style: WINDOW_STYLE(BS_AUTOCHECKBOX as u32),
+                            style: WINDOW_STYLE(BS_AUTOCHECKBOX as u32) | WS_TABSTOP,
                         },
                     ),
-                    target_label: create_static(
+                    target_label: create_groupbox(
                         app.hinstance,
                         hwnd,
                         strings.target_label,
-                        16,
-                        48,
-                        120,
-                        20,
+                        18,
+                        58,
+                        320,
+                        86,
                     ),
                     fx_radio: create_button(
                         app.hinstance,
@@ -133,11 +143,11 @@ unsafe extern "system" fn settings_wnd_proc(
                         &ControlSpec {
                             text: strings.target_fx,
                             id: ID_TARGET_FX,
-                            x: 32,
-                            y: 72,
-                            width: 220,
+                            x: 34,
+                            y: 86,
+                            width: 270,
                             height: 24,
-                            style: WINDOW_STYLE(BS_AUTORADIOBUTTON as u32) | WS_TABSTOP,
+                            style: WINDOW_STYLE(BS_AUTORADIOBUTTON as u32) | WS_TABSTOP | WS_GROUP,
                         },
                     ),
                     vx_radio: create_button(
@@ -146,9 +156,9 @@ unsafe extern "system" fn settings_wnd_proc(
                         &ControlSpec {
                             text: strings.target_vx,
                             id: ID_TARGET_VX,
-                            x: 32,
-                            y: 98,
-                            width: 220,
+                            x: 34,
+                            y: 112,
+                            width: 270,
                             height: 24,
                             style: WINDOW_STYLE(BS_AUTORADIOBUTTON as u32) | WS_TABSTOP,
                         },
@@ -159,21 +169,21 @@ unsafe extern "system" fn settings_wnd_proc(
                         &ControlSpec {
                             text: strings.startup_checkbox,
                             id: ID_STARTUP_CHECKBOX,
-                            x: 16,
-                            y: 132,
-                            width: 270,
+                            x: 22,
+                            y: 156,
+                            width: 314,
                             height: 24,
-                            style: WINDOW_STYLE(BS_AUTOCHECKBOX as u32),
+                            style: WINDOW_STYLE(BS_AUTOCHECKBOX as u32) | WS_TABSTOP,
                         },
                     ),
-                    language_label: create_static(
+                    language_label: create_groupbox(
                         app.hinstance,
                         hwnd,
                         strings.language_label,
-                        16,
-                        168,
-                        120,
-                        20,
+                        18,
+                        196,
+                        320,
+                        110,
                     ),
                     language_auto_radio: create_button(
                         app.hinstance,
@@ -181,11 +191,11 @@ unsafe extern "system" fn settings_wnd_proc(
                         &ControlSpec {
                             text: strings.language_auto,
                             id: ID_LANGUAGE_AUTO,
-                            x: 32,
-                            y: 192,
-                            width: 220,
+                            x: 34,
+                            y: 224,
+                            width: 270,
                             height: 24,
-                            style: WINDOW_STYLE(BS_AUTORADIOBUTTON as u32) | WS_TABSTOP,
+                            style: WINDOW_STYLE(BS_AUTORADIOBUTTON as u32) | WS_TABSTOP | WS_GROUP,
                         },
                     ),
                     language_ja_radio: create_button(
@@ -194,9 +204,9 @@ unsafe extern "system" fn settings_wnd_proc(
                         &ControlSpec {
                             text: strings.language_ja,
                             id: ID_LANGUAGE_JA,
-                            x: 32,
-                            y: 218,
-                            width: 220,
+                            x: 34,
+                            y: 250,
+                            width: 270,
                             height: 24,
                             style: WINDOW_STYLE(BS_AUTORADIOBUTTON as u32) | WS_TABSTOP,
                         },
@@ -207,9 +217,9 @@ unsafe extern "system" fn settings_wnd_proc(
                         &ControlSpec {
                             text: strings.language_en,
                             id: ID_LANGUAGE_EN,
-                            x: 32,
-                            y: 244,
-                            width: 220,
+                            x: 34,
+                            y: 276,
+                            width: 270,
                             height: 24,
                             style: WINDOW_STYLE(BS_AUTORADIOBUTTON as u32) | WS_TABSTOP,
                         },
@@ -220,10 +230,10 @@ unsafe extern "system" fn settings_wnd_proc(
                         &ControlSpec {
                             text: strings.close_button,
                             id: ID_CLOSE_BUTTON,
-                            x: 236,
-                            y: 278,
-                            width: 80,
-                            height: 28,
+                            x: 246,
+                            y: 324,
+                            width: 92,
+                            height: 30,
                             style: WINDOW_STYLE(BS_PUSHBUTTON as u32) | WS_TABSTOP,
                         },
                     ),
@@ -287,7 +297,7 @@ unsafe fn create_button(hinstance: HINSTANCE, parent: HWND, spec: &ControlSpec<'
         WINDOW_EX_STYLE(0),
         button_class_name(),
         PCWSTR(text_wide.as_ptr()),
-        WS_CHILD | WS_VISIBLE | WS_CLIPSIBLINGS | spec.style,
+        WS_CHILD | WS_VISIBLE | spec.style,
         spec.x,
         spec.y,
         spec.width,
@@ -302,7 +312,7 @@ unsafe fn create_button(hinstance: HINSTANCE, parent: HWND, spec: &ControlSpec<'
     hwnd
 }
 
-unsafe fn create_static(
+unsafe fn create_groupbox(
     hinstance: HINSTANCE,
     parent: HWND,
     text: &str,
@@ -311,24 +321,19 @@ unsafe fn create_static(
     width: i32,
     height: i32,
 ) -> HWND {
-    let text_wide = to_wide(text);
-    let hwnd = CreateWindowExW(
-        WINDOW_EX_STYLE(0),
-        static_class_name(),
-        PCWSTR(text_wide.as_ptr()),
-        WS_CHILD | WS_VISIBLE,
-        x,
-        y,
-        width,
-        height,
-        Some(parent),
-        None,
-        Some(hinstance),
-        None,
+    create_button(
+        hinstance,
+        parent,
+        &ControlSpec {
+            text,
+            id: 0,
+            x,
+            y,
+            width,
+            height,
+            style: WINDOW_STYLE(BS_GROUPBOX as u32),
+        },
     )
-    .unwrap_or_default();
-    apply_default_font(hwnd);
-    hwnd
 }
 
 unsafe fn apply_default_font(hwnd: HWND) {
@@ -365,9 +370,4 @@ fn settings_class_name() -> PCWSTR {
 fn button_class_name() -> PCWSTR {
     static CLASS_NAME: std::sync::OnceLock<Vec<u16>> = std::sync::OnceLock::new();
     PCWSTR(CLASS_NAME.get_or_init(|| to_wide("BUTTON")).as_ptr())
-}
-
-fn static_class_name() -> PCWSTR {
-    static CLASS_NAME: std::sync::OnceLock<Vec<u16>> = std::sync::OnceLock::new();
-    PCWSTR(CLASS_NAME.get_or_init(|| to_wide("STATIC")).as_ptr())
 }

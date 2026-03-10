@@ -1,5 +1,7 @@
 # fix-x
 
+![fix-x logo](assets/logo.png)
+
 日本語:
 `x.com` の投稿URLを、クリップボードにコピーした瞬間に `fxtwitter.com` または `vxtwitter.com` に自動変換する Windows 常駐アプリです。
 
@@ -14,6 +16,7 @@ English:
 - Enable / disable automatic rewrite
 - Launch on Windows startup toggle
 - UI language: `Auto` / `日本語` / `English`
+- Native installer executable
 - Config stored at `%APPDATA%\fix-x\config.json`
 
 ## Behavior
@@ -39,9 +42,21 @@ cargo clippy --all-targets -- -D warnings
 cargo test
 ```
 
+## Logo Assets
+
+- `assets\103d668e-2545-49b6-bdfa-2708d540447e.jpg`
+- `assets\logo.png`
+- `assets\logo.ico`
+
+Regenerate `logo.png` and `logo.ico` from the source image:
+
+```powershell
+python .\tools\generate_logo.py
+```
+
 ## Installer
 
-Build the installer with Windows built-in IExpress:
+Build the native installer executable:
 
 ```powershell
 powershell -ExecutionPolicy Bypass -File .\installer\build-installer.ps1
@@ -51,7 +66,7 @@ Output:
 
 - `dist\fix-x-installer.exe`
 
-The installer copies `fix-x.exe` into `%LOCALAPPDATA%\Programs\fix-x`, creates Start Menu shortcuts, and launches the app after installation.
+The installer copies `fix-x.exe` into `%LOCALAPPDATA%\Programs\fix-x`, writes an uninstaller script, creates Start Menu shortcuts, and launches the app after installation.
 
 ## License
 
