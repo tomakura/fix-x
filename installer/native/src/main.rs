@@ -550,8 +550,10 @@ fn install(options: &InstallOptions, launch_after_install: bool) -> Result<(), S
     let installed_exe = install_root.join("fix-x.exe");
     let installed_icon = install_root.join("fix-x.ico");
     let uninstall_script = install_root.join("uninstall.ps1");
+    let taskkill_path = system32_executable("taskkill.exe")
+        .unwrap_or_else(|| PathBuf::from(r"C:\Windows\System32\taskkill.exe"));
 
-    let _ = Command::new("taskkill")
+    let _ = Command::new(&taskkill_path)
         .args(["/IM", "fix-x.exe", "/F"])
         .stdout(Stdio::null())
         .stderr(Stdio::null())
@@ -604,6 +606,20 @@ fn start_menu_dir() -> Option<PathBuf> {
     })
 }
 
+fn system32_executable(name: &str) -> Option<PathBuf> {
+    env::var_os("WINDIR").map(|base| PathBuf::from(base).join("System32").join(name))
+}
+
+fn system_powershell() -> Option<PathBuf> {
+    env::var_os("WINDIR").map(|base| {
+        PathBuf::from(base)
+            .join("System32")
+            .join("WindowsPowerShell")
+            .join("v1.0")
+            .join("powershell.exe")
+    })
+}
+
 fn create_shortcuts(
     app_shortcut_path: &Path,
     uninstall_shortcut_path: &Path,
@@ -612,6 +628,9 @@ fn create_shortcuts(
     icon_path: &Path,
     uninstall_script: &Path,
 ) -> Result<(), String> {
+    let powershell_path = system_powershell().unwrap_or_else(|| {
+        PathBuf::from(r"C:\Windows\System32\WindowsPowerShell\v1.0\powershell.exe")
+    });
     let script = format!(
         "$w = New-Object -ComObject WScript.Shell; \
 $app = $w.CreateShortcut('{app_shortcut}'); \
@@ -620,7 +639,7 @@ $app.WorkingDirectory = '{working}'; \
 $app.IconLocation = '{icon}'; \
 $app.Save(); \
 $uninstall = $w.CreateShortcut('{uninstall_shortcut}'); \
-$uninstall.TargetPath = 'powershell.exe'; \
+$uninstall.TargetPath = '{powershell}'; \
 $uninstall.WorkingDirectory = '{working}'; \
 $uninstall.IconLocation = '{icon}'; \
 $uninstall.Arguments = '-NoProfile -ExecutionPolicy Bypass -File \"{uninstall_script}\"'; \
@@ -630,10 +649,11 @@ $uninstall.Save()",
         target = ps_single_quote(&target_path.display().to_string()),
         working = ps_single_quote(&working_directory.display().to_string()),
         icon = ps_single_quote(&icon_path.display().to_string()),
+        powershell = ps_single_quote(&powershell_path.display().to_string()),
         uninstall_script = ps_single_quote(&uninstall_script.display().to_string()),
     );
 
-    let status = Command::new("powershell.exe")
+    let status = Command::new(&powershell_path)
         .args([
             "-NoProfile",
             "-ExecutionPolicy",

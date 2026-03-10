@@ -9,7 +9,7 @@ use windows::{
                 CloseClipboard, EmptyClipboard, GetClipboardData, IsClipboardFormatAvailable,
                 OpenClipboard, SetClipboardData,
             },
-            Memory::{GMEM_MOVEABLE, GlobalAlloc, GlobalLock, GlobalUnlock},
+            Memory::{GMEM_MOVEABLE, GlobalAlloc, GlobalLock, GlobalSize, GlobalUnlock},
             Ole::CF_UNICODETEXT,
         },
     },
@@ -61,7 +61,15 @@ pub fn read_clipboard_text(owner: HWND) -> Result<Option<String>> {
             return Err(Error::from_thread());
         }
 
-        let text = read_wide_string(ptr.cast::<u16>());
+        let byte_len = GlobalSize(HGLOBAL(handle.0));
+        if byte_len < size_of::<u16>() {
+            let _ = GlobalUnlock(HGLOBAL(handle.0));
+            return Ok(None);
+        }
+
+        let wide_len = byte_len / size_of::<u16>();
+        let slice = std::slice::from_raw_parts(ptr.cast::<u16>(), wide_len);
+        let text = decode_wide_string(slice);
         let _ = GlobalUnlock(HGLOBAL(handle.0));
         Ok(Some(text))
     }
@@ -101,15 +109,9 @@ impl Drop for ClipboardGuard {
     }
 }
 
-unsafe fn read_wide_string(mut ptr: *const u16) -> String {
-    let start = ptr;
-    let mut len = 0;
-    while *ptr != 0 {
-        len += 1;
-        ptr = ptr.add(1);
-    }
-
-    let slice = std::slice::from_raw_parts(start, len);
+fn decode_wide_string(slice: &[u16]) -> String {
+    let len = slice.iter().position(|&ch| ch == 0).unwrap_or(slice.len());
+    let slice = &slice[..len];
     String::from_utf16_lossy(slice)
 }
 
@@ -175,5 +177,17 @@ mod tests {
             )
             .is_none()
         );
+    }
+
+    #[test]
+    fn decodes_wide_string_without_terminator() {
+        let text = super::decode_wide_string(&['t' as u16, 'e' as u16, 's' as u16, 't' as u16]);
+        assert_eq!(text, "test");
+    }
+
+    #[test]
+    fn decodes_wide_string_until_terminator() {
+        let text = super::decode_wide_string(&['o' as u16, 'k' as u16, 0, 'x' as u16, 'x' as u16]);
+        assert_eq!(text, "ok");
     }
 }

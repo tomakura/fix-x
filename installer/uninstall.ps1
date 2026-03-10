@@ -8,6 +8,7 @@ $startMenuDir = Join-Path $env:APPDATA "Microsoft\\Windows\\Start Menu\\Programs
 $appShortcut = Join-Path $startMenuDir "fix-x.lnk"
 $uninstallShortcut = Join-Path $startMenuDir "Uninstall fix-x.lnk"
 $runKey = "HKCU:\\Software\\Microsoft\\Windows\\CurrentVersion\\Run"
+$cmdExe = Join-Path $env:WINDIR "System32\\cmd.exe"
 
 Write-Host "Uninstalling fix-x..."
 
@@ -34,6 +35,6 @@ if (Test-Path $installedIcon) {
 }
 
 $cleanupCmd = "ping 127.0.0.1 -n 2 > nul & if exist `"$installRoot`" rmdir /s /q `"$installRoot`""
-Start-Process -FilePath "cmd.exe" -ArgumentList "/c $cleanupCmd" -WindowStyle Hidden
+Start-Process -FilePath $cmdExe -ArgumentList "/c $cleanupCmd" -WindowStyle Hidden
 
 Write-Host "fix-x has been removed."
