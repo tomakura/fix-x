@@ -1,4 +1,7 @@
 /target
+/installer/native/target
 dist/
 installer/native/payload/
+__pycache__/
+*.pyc
 *.rs.bk
